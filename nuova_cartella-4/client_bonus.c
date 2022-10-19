@@ -1,43 +1,34 @@
 #include "minitalk.h"
-#include <time.h>
-#include <stdio.h>
 
-static void	count_byte(int sig, siginfo_t *siginfo, void *context)
+static void	ft_result(int sig, siginfo_t *siginfo, void *context)
 {
-	static int	count = 0;
-
 	(void)siginfo;
 	(void)context;
-	if (sig == SIGUSR1)
-		++count;
-	else
-	{
-		ft_putnbr(count);
-		ft_putstr(" byte\n");
-		exit(EXIT_FAILURE);
-	}
+	(void)sig;
+	ft_putstr("Message arrived!\n");
+	exit(1);
 }
 
-static void	ft_last_bit(int pid)
+static void	last_bit(int pid)
 {
 	int	i;
 
 	i = 8;
 	while (i--)
 	{
-		if (kill(pid, SIGUSR1) == -1)
-			ft_putstr("\nError : Kill failed\n");
+		if (kill(pid, SIGUSR2) == -1)
+			ft_putstr("\nKill failed\n");
 		usleep(10);
 	}
 }
 
-static void	ft_error(void)
+static void	Wrong_pid(void)
 {
-	ft_putstr("\nError : Invalid PID\n");
-	exit(EXIT_FAILURE);
+	ft_putstr("Wrong PID\n");
+	exit(1);
 }
 
-static void	ft_send_to_server(int pid, char *str)
+static void	send_to_server(int pid, char *str)
 {
 	int		i;
 	char	c;
@@ -45,21 +36,22 @@ static void	ft_send_to_server(int pid, char *str)
 	while (*str)
 	{
 		i = 8;
-		c = *str++;
+		c = *str;
 		while (i--)
 		{
-			if (c >> i & 1)
+			if ((c >> i & 1) != 0)
 			{
-				if (kill(pid, SIGUSR2) == -1)
-					ft_error();
+				if (kill(pid, SIGUSR1) == -1) // Fa la funzione kill ma se il ritorno è == -1 fa anche la funzione error
+					Wrong_pid();
 			}
 			else
-				if (kill(pid, SIGUSR1) == -1)
-					ft_error();
+				if (kill(pid, SIGUSR2) == -1)
+					Wrong_pid();
 			usleep(50);
 		}
+		str++;
 	}
-	ft_last_bit(pid);
+	last_bit(pid);
 }
 
 int	main(int argc, char **argv)
@@ -68,21 +60,17 @@ int	main(int argc, char **argv)
 
 	if (argc != 3 || !ft_strlen(argv[2]))
 	{
-		ft_putstr("Arguments to run the program: ./client [pid] [string]\n");
-		exit(EXIT_FAILURE);
+		ft_putstr("Wrong input: [pid] [string]\n");
+		exit(0);
 	}
-	ft_putstr("Client sent     : ");
-	ft_putnbr(ft_strlen(argv[2]));
-	ft_putstr(" byte\n");
-	ft_putstr("Server received : ");
-	sa.sa_sigaction = count_byte;
+	sa.sa_sigaction = ft_result;
 	sa.sa_flags = SA_SIGINFO;
 	if (sigaction(SIGUSR1, &sa, 0) == -1)
-		return (EXIT_FAILURE);
+		exit(1);
 	if (sigaction(SIGUSR2, &sa, 0) == -1)
-		return (EXIT_FAILURE);
-	ft_send_to_server(ft_atoi(argv[1]), argv[2]);
-	while (1)
-		pause();
-	return (EXIT_SUCCESS);
+		exit(1);
+	send_to_server(ft_atoi(argv[1]), argv[2]);
+	return (0);
 }
+
+
